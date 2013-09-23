@@ -40,12 +40,15 @@ Warning, Coffee-Script ahead..
         data.store () ->
           console.log "Any changes is stored"
 
+You can work with several buckets simultaniously
 
-      data = new bucket.Bucket(filename)
-      data.load () ->
-        # Any data is now available in data
-        # ... perform any changes
-        # ... store these changes
+    data = new bucket.Bucket(filename)
+    data.load () ->
+      # Any data is now available in data
+      # ... perform any changes
+      # ... store these changes
 
-        # Append this state to the bottom of another data set
-        foreignBucket.merge data
+You can even merge the final state of a bucket into the state of another.
+
+      # Append this state to the bottom of another data set
+      foreignBucket.merge data
