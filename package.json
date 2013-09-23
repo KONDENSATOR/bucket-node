@@ -1,0 +1,14 @@
+{
+  "name": "bucket-node",
+  "description": "Simple filestorage",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url":  "git://github.com/KONDENSATOR/bucket-node.git" },
+  "dependencies": {
+    "underscore": "*",
+    "carrier": "*",
+    "clone": "*"
+  },
+  "private": true
+}
