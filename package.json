@@ -5,6 +5,10 @@
   "repository": {
     "type": "git",
     "url":  "git://github.com/KONDENSATOR/bucket-node.git" },
+  "bugs": {
+    "url": "http://github.com/KONDENSATOR/bucket-node",
+    "email":"fredrik@kondensator.se" },
+  "license":{ "license":"MIT" },
   "dependencies": {
     "underscore": "*",
     "carrier": "*",

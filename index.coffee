@@ -72,7 +72,6 @@ exports.Bucket = (fileName) -> {
     getByIds : (list) ->
       _.map list, (id) -> clone @bucket[id]
 
-
     findWhere : (properties) ->
       itm = _.findWhere(@bucket, properties)
       itm = clone itm if itm?
@@ -101,7 +100,6 @@ exports.Bucket = (fileName) -> {
           else
             console.error "Bucket ERROR: Failed to merge"
             console.timeEnd timeStamp
-
   }
 
 exports.bucket = null
