@@ -9,7 +9,6 @@ exports.Bucket = (fileName) -> {
     dirty : {}
     deleted : []
 
-
     obliterate : (cb) ->
       do (@filename, cb) ->
         fs.unlink @filename, (err) ->
@@ -24,7 +23,7 @@ exports.Bucket = (fileName) -> {
 
 
     store : (cb) ->
-      do (@fileName, @bucket, @dirty, cb) ->
+      do (@fileName, @bucket, @dirty, @deleted, cb) ->
 
         _.each @deleted, (id) -> @dirty[id] = {deleted:true, id:id}
 
@@ -67,7 +66,12 @@ exports.Bucket = (fileName) -> {
     deleteById : (id) ->
       deleted.push id
 
-    getById : (id) -> clone @bucket[id]
+    getById : (id, includeDirty = false) ->
+      if includeDirty
+        included = _.extend {}, @bucket, @dirty
+        clone included[id]
+      else
+        clone @bucket[id]
 
     getByIds : (list) ->
       _.map list, (id) -> clone @bucket[id]
@@ -77,8 +81,11 @@ exports.Bucket = (fileName) -> {
       itm = clone itm if itm?
       itm
 
-    where : (properties) ->
-      _.map _.where(@bucket, properties), (itm) -> clone(itm)
+    where : (properties, includeDirty = false) ->
+      if includeDirty
+        _.map _.where(_.extend({}, @bucket, @dirty), properties), (itm) ->clone(itm)
+      else
+        _.map _.where(@bucket, properties), (itm) -> clone(itm)
 
     set : (object) ->
       @dirty[object.id] = clone(object)
