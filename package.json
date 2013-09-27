@@ -12,7 +12,8 @@
   "dependencies": {
     "underscore": "*",
     "carrier": "*",
-    "clone": "*"
+    "clone": "*",
+    "node-uuid" : "*"
   },
   "private": true
 }

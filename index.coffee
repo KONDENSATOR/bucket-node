@@ -2,6 +2,7 @@ _     = require 'underscore'
 fs    = require 'fs'
 carrier = require 'carrier'
 clone = require 'clone'
+uuid = require 'node-uuid'
 
 exports.Bucket = (fileName) -> {
     fileName : fileName
@@ -10,8 +11,7 @@ exports.Bucket = (fileName) -> {
     deleted : []
 
     obliterate : (cb) ->
-      do (@filename, cb) ->
-        fs.unlink @filename, (err) ->
+        fs.unlink fileName, (err) ->
           unless err?
             delete @bucket
             delete @filename
@@ -88,6 +88,8 @@ exports.Bucket = (fileName) -> {
         _.map _.where(@bucket, properties), (itm) -> clone(itm)
 
     set : (object) ->
+      unless object.id?
+        _.extend object {id: uuid.v4()}
       @dirty[object.id] = clone(object)
 
     merge : (childbucket) ->
