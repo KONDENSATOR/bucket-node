@@ -24,14 +24,15 @@ exports.Bucket = (fileName) -> {
 
 
     store : (cb) ->
-      do (@fileName, @bucket, @dirty, @deleted, cb) ->
+      dirty = @dirty
+      @dirty = {}
+      do (@fileName, @bucket, dirty, @deleted, cb) ->
 
-        _.each @deleted, (id) -> @dirty[id] = {deleted:true, id:id}
+        _.each @deleted, (id) -> dirty[id] = {deleted:true, id:id}
 
-        fs.appendFile @fileName, JSON.stringify(@dirty) + "\n", 'utf8', (err) ->
+        fs.appendFile @fileName, JSON.stringify(dirty) + "\n", 'utf8', (err) ->
           unless err?
-            @bucket = _.extend @bucket, @dirty
-            @dirty = {}
+            @bucket = _.extend @bucket, dirty
             _.each @deleted, (id) -> delete @bucket[id]
             @deleted = []
             cb()
@@ -65,7 +66,7 @@ exports.Bucket = (fileName) -> {
             cb()
 
     deleteById : (id) ->
-      deleted.push id
+      @deleted.push id
 
     getById : (id, includeDirty = false) ->
       if includeDirty
@@ -111,6 +112,13 @@ exports.Bucket = (fileName) -> {
           else
             console.error "Bucket ERROR: Failed to merge"
             console.timeEnd timeStamp
+
+    hasChanges : () ->
+      _.keys(@dirty).length > 0 or @deleted.length > 0
+
+    discardUnstoredChanges : () ->
+      @dirty = {}
+      @deleted = []
   }
 
 exports.bucket = null

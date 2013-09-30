@@ -8,6 +8,7 @@ exports.testGroup1 = {
       instance.set {id: "123", fluff: "fluff", diff: "diff1"}
       instance.set {id: "456", fluff: "fluff", diff: "diff2"}
       instance.store () ->
+
         callback()
 
   tearDown : (callback) ->
@@ -59,4 +60,18 @@ exports.testGroup1 = {
       where = (@myBucket.where {niff: "niff"})[0]
       test.ok(where.id?, "ID should be auto-assigned")
       test.done()
+
+  testHasChanges : (test) ->
+    test.expect 5
+    test.ok(!@myBucket.hasChanges(), "Shouldn't have changes before any operations...")
+    @myBucket.set {fjorp: "fjorp"}
+    test.ok(@myBucket.hasChanges(), "Un-stored set, should have changes")
+    @myBucket.discardUnstoredChanges()
+    test.ok(!@myBucket.hasChanges(), "Shouldn't have changes after discard")
+    @myBucket.deleteById("456")
+    test.ok(@myBucket.hasChanges(), "Un-stored delete, should have changes")
+    @myBucket.store () ->
+      test.ok(!@myBucket.hasChanges(), "Shouldn't have changes after store")
+      test.done()
+
 }

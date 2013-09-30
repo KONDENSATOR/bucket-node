@@ -33,21 +33,23 @@
         });
       },
       store: function(cb) {
+        var dirty;
+
+        dirty = this.dirty;
+        this.dirty = {};
         return (function(fileName, bucket, dirty, deleted, cb) {
           this.fileName = fileName;
           this.bucket = bucket;
-          this.dirty = dirty;
           this.deleted = deleted;
           _.each(this.deleted, function(id) {
-            return this.dirty[id] = {
+            return dirty[id] = {
               deleted: true,
               id: id
             };
           });
-          return fs.appendFile(this.fileName, JSON.stringify(this.dirty) + "\n", 'utf8', function(err) {
+          return fs.appendFile(this.fileName, JSON.stringify(dirty) + "\n", 'utf8', function(err) {
             if (err == null) {
-              this.bucket = _.extend(this.bucket, this.dirty);
-              this.dirty = {};
+              this.bucket = _.extend(this.bucket, dirty);
               _.each(this.deleted, function(id) {
                 return delete this.bucket[id];
               });
@@ -58,7 +60,7 @@
               return cb(err);
             }
           });
-        })(this.fileName, this.bucket, this.dirty, this.deleted, cb);
+        })(this.fileName, this.bucket, dirty, this.deleted, cb);
       },
       load: function(cb) {
         return (function(fileName, bucket, cb) {
@@ -100,7 +102,7 @@
         })(this.fileName, this.bucket, cb);
       },
       deleteById: function(id) {
-        return deleted.push(id);
+        return this.deleted.push(id);
       },
       getById: function(id, includeDirty) {
         var included;
@@ -180,6 +182,13 @@
             }
           });
         })(childbucket);
+      },
+      hasChanges: function() {
+        return _.keys(this.dirty).length > 0 || this.deleted.length > 0;
+      },
+      discardUnstoredChanges: function() {
+        this.dirty = {};
+        return this.deleted = [];
       }
     };
   };
