@@ -25,6 +25,7 @@
             delete this.filename;
             delete this.dirty;
             delete this.deleted;
+            exports.bucket = null;
             return cb();
           } else {
             return console.error("Bucket ERROR: Failed to obliterate bucket");
@@ -143,10 +144,13 @@
         }
       },
       set: function(object) {
+        var id;
+
         if (object.id == null) {
-          _.extend(object({
-            id: uuid.v4()
-          }));
+          id = uuid.v4();
+          _.extend(object, {
+            id: id
+          });
         }
         return this.dirty[object.id] = clone(object);
       },

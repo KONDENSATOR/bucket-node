@@ -17,6 +17,7 @@ exports.Bucket = (fileName) -> {
             delete @filename
             delete @dirty
             delete @deleted
+            exports.bucket = null
             cb()
           else
             console.error "Bucket ERROR: Failed to obliterate bucket"
@@ -89,7 +90,8 @@ exports.Bucket = (fileName) -> {
 
     set : (object) ->
       unless object.id?
-        _.extend object {id: uuid.v4()}
+        id = uuid.v4()
+        _.extend object, {id: id}
       @dirty[object.id] = clone(object)
 
     merge : (childbucket) ->
