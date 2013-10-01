@@ -33,34 +33,37 @@
         });
       },
       store: function(cb) {
-        var dirty;
+        var _this = this;
 
-        dirty = this.dirty;
-        this.dirty = {};
+        if (!this.hasChanges()) {
+          return cb(null, "No changes to save");
+        }
         return (function(fileName, bucket, dirty, deleted, cb) {
-          this.fileName = fileName;
-          this.bucket = bucket;
-          this.deleted = deleted;
-          _.each(this.deleted, function(id) {
+          _this.fileName = fileName;
+          _this.bucket = bucket;
+          _this.dirty = dirty;
+          _this.deleted = deleted;
+          _.each(_this.deleted, function(id) {
             return dirty[id] = {
               deleted: true,
               id: id
             };
           });
-          return fs.appendFile(this.fileName, JSON.stringify(dirty) + "\n", 'utf8', function(err) {
+          return fs.appendFile(_this.fileName, JSON.stringify(dirty) + "\n", 'utf8', function(err) {
             if (err == null) {
-              this.bucket = _.extend(this.bucket, dirty);
-              _.each(this.deleted, function(id) {
+              _.extend(_this.bucket, _this.dirty);
+              _this.dirty = {};
+              _.each(_this.deleted, function(id) {
                 return delete this.bucket[id];
               });
-              this.deleted = [];
-              return cb();
+              _this.deleted = [];
+              return cb(null, "Changes saved");
             } else {
               console.error("Bucket ERROR: Failed to store transaction!");
-              return cb(err);
+              return cb(err, "Error during save");
             }
           });
-        })(this.fileName, this.bucket, dirty, this.deleted, cb);
+        })(this.fileName, this.bucket, this.dirty, this.deleted, cb);
       },
       load: function(cb) {
         return (function(fileName, bucket, cb) {

@@ -8,11 +8,10 @@ exports.testGroup1 = {
       instance.set {id: "123", fluff: "fluff", diff: "diff1"}
       instance.set {id: "456", fluff: "fluff", diff: "diff2"}
       instance.store () ->
-
         callback()
 
   tearDown : (callback) ->
-    @myBucket.obliterate () ->
+    @myBucket.obliterate () =>
       callback()
 
   testGetById : (test) ->
@@ -23,11 +22,10 @@ exports.testGroup1 = {
     test.ok(!get?, "object shouldn't be available here...")
     get = @myBucket.getById("test-id", true)
     test.ok(get?, "object should be availabel using the include dirty flag")
-    do(@myBucket) ->
-      @myBucket.store () ->
-        get = @myBucket.getById("test-id")
-        test.ok(get?, "object should be available after store")
-        test.done()
+    @myBucket.store () =>
+      get = @myBucket.getById("test-id")
+      test.ok(get?, "object should be available after store")
+      test.done()
 
   testFindWhere : (test) ->
     test.expect(3)
@@ -56,7 +54,7 @@ exports.testGroup1 = {
     test.expect(1)
     data = {niff: "niff", nuff: "nuff"}
     @myBucket.set(data)
-    @myBucket.store () ->
+    @myBucket.store () =>
       where = (@myBucket.where {niff: "niff"})[0]
       test.ok(where.id?, "ID should be auto-assigned")
       test.done()
@@ -70,8 +68,42 @@ exports.testGroup1 = {
     test.ok(!@myBucket.hasChanges(), "Shouldn't have changes after discard")
     @myBucket.deleteById("456")
     test.ok(@myBucket.hasChanges(), "Un-stored delete, should have changes")
-    @myBucket.store () ->
+    @myBucket.store () =>
       test.ok(!@myBucket.hasChanges(), "Shouldn't have changes after store")
       test.done()
 
+
+  testStore : (test) ->
+    test.expect 2
+    test.ok(@myBucket.where({fluff : "fluff"})[0], 2, "Should contain two fluffs after setup")
+    @myBucket.set({fluff : "fluff", miff : "miff"})
+    @myBucket.store =>
+      anotherBucket = new bucket.Bucket("./test.db")
+      anotherBucket.load ->
+        test.ok(anotherBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+        test.done()
+
+
+  testReplace : (test) ->
+    test.expect 6
+    @myBucket.set({id : "456", fluff: "floff", fiff: "fiff"})
+    object = @myBucket.getById("456", true)
+    test.equal(object.fiff, "fiff", "Should be the updated object")
+    test.equal(object.fluff, "floff", "Should be the updated fluff")
+    @myBucket.store =>
+      object = @myBucket.getById "456"
+      test.equal(object.fiff, "fiff", "Should be the updated object after store")
+      test.equal(object.fluff, "floff", "Should be the updated fluff after store")
+      anotherBucket = new bucket.Bucket("./test.db")
+      anotherBucket.load =>
+        object = anotherBucket.getById "456"
+        test.equal(object.fiff, "fiff", "Should be the updated object after store and load")
+        test.equal(object.fluff, "floff", "Should be the updated fluff after store and load")
+        test.done()
+
+  testStoreEmpty : (test) ->
+    test.expect 1
+    @myBucket.store (err, message) =>
+      test.equal(message, "No changes to save", "Should be status: no changes to save")
+      test.done()
 }

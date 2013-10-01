@@ -23,23 +23,25 @@ exports.Bucket = (fileName) -> {
             console.error "Bucket ERROR: Failed to obliterate bucket"
 
 
+#   store callback, should be (err, statusMessage) ->
     store : (cb) ->
-      dirty = @dirty
-      @dirty = {}
-      do (@fileName, @bucket, dirty, @deleted, cb) ->
+      unless @hasChanges()
+        return cb(null, "No changes to save")
+      do (@fileName, @bucket, @dirty, @deleted, cb) =>
 
         _.each @deleted, (id) -> dirty[id] = {deleted:true, id:id}
 
-        fs.appendFile @fileName, JSON.stringify(dirty) + "\n", 'utf8', (err) ->
+        fs.appendFile @fileName, JSON.stringify(dirty) + "\n", 'utf8', (err) =>
           unless err?
-            @bucket = _.extend @bucket, dirty
+            _.extend @bucket, @dirty
+            @dirty = {}
             _.each @deleted, (id) -> delete @bucket[id]
             @deleted = []
-            cb()
+            cb(null, "Changes saved")
           else
             console.error "Bucket ERROR: Failed to store transaction!"
             # TODO: Must take care of this execution path
-            cb(err) # Continue our with business!?!?! Not a good choice
+            cb(err, "Error during save") # Continue our with business!?!?! Not a good choice
 
     load : (cb) ->
       do (@fileName, @bucket, cb) ->
