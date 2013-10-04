@@ -27,16 +27,19 @@ exports.Bucket = (fileName) -> {
     store : (cb) ->
       unless @hasChanges()
         return cb(null, "No changes to save")
-      do (@fileName, @bucket, @dirty, @deleted, cb) =>
 
-        _.each @deleted, (id) -> dirty[id] = {deleted:true, id:id}
+      dirtyToWrite = @dirty
+      deletesToWrite = @deleted
+      _.extend @bucket, @dirty
+      @dirty = {}
+      _.each @deleted, (id) -> delete @bucket[id]
+      @deleted = []
 
-        fs.appendFile @fileName, JSON.stringify(dirty) + "\n", 'utf8', (err) =>
+      do (@fileName, dirtyToWrite, deletesToWrite, cb) =>
+        _.each deletesToWrite, (id) -> dirtyToWrite[id] = {deleted:true, id:id}
+
+        fs.appendFile @fileName, JSON.stringify(dirtyToWrite) + "\n", 'utf8', (err) =>
           unless err?
-            _.extend @bucket, @dirty
-            @dirty = {}
-            _.each @deleted, (id) -> delete @bucket[id]
-            @deleted = []
             cb(null, "Changes saved")
           else
             console.error "Bucket ERROR: Failed to store transaction!"
