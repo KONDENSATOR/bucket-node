@@ -7,7 +7,9 @@ exports.testGroup1 = {
       @myBucket = instance
       instance.set {id: "123", fluff: "fluff", diff: "diff1"}
       instance.set {id: "456", fluff: "fluff", diff: "diff2"}
+
       instance.store () ->
+        console.log "inside instance.store"
         callback()
 
   tearDown : (callback) ->

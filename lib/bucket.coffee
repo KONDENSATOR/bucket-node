@@ -1,34 +1,45 @@
-_     = require 'underscore'
-fs    = require 'fs'
+cp      = require 'child_process'
+fs      = require 'fs'
 carrier = require 'carrier'
-clone = require 'clone'
-uuid = require 'node-uuid'
+clone   = require 'clone'
+uuid    = require 'node-uuid'
+_       = require 'underscore'
 
 exports.Bucket = (fileName) -> {
-    fileName : fileName
-    bucket : {}
-    dirty : {}
-    deleted : []
+    fileName    : fileName
+    bucket      : {}
+    dirty       : {}
+    deleted     : []
+    tailProcess : null
 
     obliterate : (cb) ->
-        fs.unlink fileName, (err) ->
-          unless err?
-            delete @bucket
-            delete @filename
-            delete @dirty
-            delete @deleted
-            exports.bucket = null
-            cb()
-          else
-            console.error "Bucket ERROR: Failed to obliterate bucket"
+      console.log "aaaaaaaa"
+      closing = () ->
+        console.log 'tailProcess close'
+        #fs.unlink fileName, (err) ->
+          #unless err?
+            #delete @bucket
+            #delete @filename
+            #delete @dirty
+            #delete @deleted
+            #exports.bucket = null
+            #cb()
+          #else
+            #console.error "Bucket ERROR: Failed to obliterate bucket"
+            #cb(err)
 
+      @tailProcess.on 'exit', closing
+      @tailProcess.on 'close', closing
+
+      console.log "Killing process"
+      @tailProcess.kill()
 
 #   store callback, should be (err, statusMessage) ->
     store : (cb) ->
       unless @hasChanges()
         return cb(null, "No changes to save")
 
-      dirtyToWrite = @dirty
+      dirtyToWrite   = @dirty
       deletesToWrite = @deleted
       _.extend @bucket, @dirty
       @dirty = {}
@@ -38,7 +49,13 @@ exports.Bucket = (fileName) -> {
       do (@fileName, dirtyToWrite, deletesToWrite, cb) =>
         _.each deletesToWrite, (id) -> dirtyToWrite[id] = {deleted:true, id:id}
 
-        fs.appendFile @fileName, JSON.stringify(dirtyToWrite) + "\n", 'utf8', (err) =>
+        dirtyData = JSON.stringify(dirtyToWrite)
+        dirtyData = "#{dirtyData}\n"
+        console.log "Appending file"
+        console.dir @fileName
+        console.dir dirtyData
+        fs.appendFile @fileName, dirtyData, {encoding:'utf8'}, (err) =>
+          console.dir "dirty written"
           unless err?
             cb(null, "Changes saved")
           else
@@ -46,29 +63,32 @@ exports.Bucket = (fileName) -> {
             # TODO: Must take care of this execution path
             cb(err, "Error during save") # Continue our with business!?!?! Not a good choice
 
+    close : (cb) ->
+      @tailProcess.kill()
+
+    reader : () ->
+      #inStream = fs.createReadStream(@fileName, {flags:'r', encoding:'utf8'})
+      @tailProcess = cp.spawn 'tail', ['-f', '-n +0', @fileName]
+      inStream     = @tailProcess.stdout
+      dataReader   = carrier.carry inStream, (line) ->
+        chunk   = JSON.parse line
+        deleted = _.where chunk, {deleted:true}
+        deleted = _.pluck deleted, 'id'
+        _.each deleted, (id) ->
+          delete chunk[id]
+          delete @bucket[id]
+
+        _.extend contextBucket, chunk
+
+      dataReader.once 'end', () ->
+        console.info "Database closed"
+        cb()
+
     load : (cb) ->
-      do (@fileName, @bucket, cb) ->
-        fs.exists @fileName, (exists) ->
-          if exists
-            contextBucket = @bucket
-            console.time "Bucket TIME: Read file"
-            inStream = fs.createReadStream(@fileName, {flags:'r', encoding:'utf8'})
-            dataReader = carrier.carry inStream, (line) ->
-              chunk = JSON.parse line
-              deleted = _.where chunk, {deleted:true}
-              deleted = _.pluck deleted, 'id'
-              _.each deleted, (id) ->
-                delete chunk[id]
-                delete @bucket[id]
+      fs.closeSync(fs.openSync(@fileName, 'a'))
+      @reader()
+      cb()
 
-              _.extend contextBucket, chunk
-
-            dataReader.once 'end', () ->
-              console.timeEnd "Bucket TIME: Read file"
-              cb()
-          else
-            console.warn "Bucket WARN: File empty"
-            cb()
 
     deleteById : (id) ->
       @deleted.push id
@@ -122,7 +142,7 @@ exports.Bucket = (fileName) -> {
       _.keys(@dirty).length > 0 or @deleted.length > 0
 
     discardUnstoredChanges : () ->
-      @dirty = {}
+      @dirty   = {}
       @deleted = []
   }
 
