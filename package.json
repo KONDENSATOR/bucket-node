@@ -13,7 +13,11 @@
     "underscore": "*",
     "carrier": "*",
     "clone": "*",
-    "node-uuid" : "*"
+    "node-uuid" : "*",
+    "coffee-script" : "*",
+    "commander" : "*",
+    "hppy" : "KONDENSATOR/hppy-node",
+    "express" : "*"
   },
   "private": true
 }

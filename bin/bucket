@@ -1,0 +1,5 @@
+#!/bin/sh
+
+BASEDIR=$(dirname $0)
+$BASEDIR/../node_modules/coffee-script/bin/coffee $BASEDIR/cli.coffee "$@"
+
