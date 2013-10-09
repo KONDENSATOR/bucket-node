@@ -87,24 +87,24 @@ exports.testGroup1 = {
 
   testStore : (test) ->
     test.expect 2
-    test.ok(@myBucket.where({fluff : "fluff"})[0], 2, "Should contain two fluffs after setup")
+    test.equal(@myBucket.where({fluff : "fluff"}).length, 2, "Should contain two fluffs after setup")
     @myBucket.set({fluff : "fluff", miff : "miff"})
     @myBucket.store =>
       anotherBucket = new bucket.Bucket("./test.db")
       anotherBucket.load ->
-        test.ok(anotherBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+        test.equal(anotherBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after store and reload")
         test.done()
 
   testStoreImpatient : (test) ->
     test.expect 3
-    test.ok(@myBucket.where({fluff : "fluff"})[0], 2, "Should contain two fluffs after setup")
+    test.equal(@myBucket.where({fluff : "fluff"}).length, 2, "Should contain two fluffs after setup")
     @myBucket.set({fluff : "fluff", miff : "miff"})
     @myBucket.store =>
       anotherBucket = new bucket.Bucket("./test.db")
       anotherBucket.load ->
-        test.ok(anotherBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+        test.equal(anotherBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after store and reload")
         test.done()
-    test.ok(@myBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+    test.equal(@myBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after store")
 
 
   testReplace : (test) ->
@@ -166,10 +166,10 @@ exports.testGroup1 = {
     test.expect 8
     @myBucket.set({fluff: "fluff", piff: "piff"})
     @myBucket.store ->
-    test.equals(@myBucket.where({fluff: "fluff"}).length, 3, "Should be three fluff objects");
+    test.equal(@myBucket.where({fluff: "fluff"}).length, 3, "Should be three fluff objects");
     @myBucket.deleteById "456"
     @myBucket.store ->
-    test.equals(@myBucket.where({fluff: "fluff"}).length, 2, "Should be two fluff objects");
+    test.equal(@myBucket.where({fluff: "fluff"}).length, 2, "Should be two fluff objects");
     @myBucket.set({id: "456", fluff: "fluff"})
     @myBucket.store ->
     @myBucket.set({id: "456", fluff: "fluff", diff: "diff"})
@@ -180,11 +180,11 @@ exports.testGroup1 = {
     test.equal @myBucket.getById("456").diff, "diff2", "the new 456 should have the diff property with value diff2"
     @myBucket.set({id: "456", fluff: "fluff"})
     @myBucket.store ->
-    test.equals(@myBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects");
+    test.equal(@myBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects");
     test.ok !@myBucket.getById("456").diff?, "teh new 456 shouldn't have the diff property"
     anotherBucket = new bucket.Bucket("./test.db")
     anotherBucket.load =>
-      test.equals(anotherBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects in the saved file");
+      test.equal(anotherBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects in the saved file");
       test.equal @myBucket.getById("789").diff, "hoff", "the 789 should have the diff property with value hoff"
       test.ok !anotherBucket.getById("456").diff?, "the new 456 shouldn't have the diff property in the saved file"
       test.done()
