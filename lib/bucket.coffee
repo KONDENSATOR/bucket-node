@@ -13,29 +13,27 @@ exports.Bucket = (fileName) -> {
     tailProcess : null
 
     obliterate : (cb) ->
-      console.log "aaaaaaaa"
       closing = () ->
-        console.log 'tailProcess close'
-        #fs.unlink fileName, (err) ->
-          #unless err?
-            #delete @bucket
-            #delete @filename
-            #delete @dirty
-            #delete @deleted
-            #exports.bucket = null
-            #cb()
-          #else
-            #console.error "Bucket ERROR: Failed to obliterate bucket"
-            #cb(err)
+        fs.unlink fileName, (err) ->
+          unless err?
+            delete @bucket
+            delete @filename
+            delete @dirty
+            delete @deleted
+            exports.bucket = null
+            cb()
+          else
+            console.error "Bucket ERROR: Failed to obliterate bucket"
+            cb(err)
 
       @tailProcess.on 'exit', closing
-      @tailProcess.on 'close', closing
+#      @tailProcess.on 'close', closing
 
-      console.log "Killing process"
       @tailProcess.kill()
 
 #   store callback, should be (err, statusMessage) ->
     store : (cb) ->
+      console.log "store called"
       unless @hasChanges()
         return cb(null, "No changes to save")
 
@@ -43,7 +41,8 @@ exports.Bucket = (fileName) -> {
       deletesToWrite = @deleted
       _.extend @bucket, @dirty
       @dirty = {}
-      _.each @deleted, (id) -> delete @bucket[id]
+      _.each @deleted, (id) =>
+        delete @bucket[id]
       @deleted = []
 
       do (@fileName, dirtyToWrite, deletesToWrite, cb) =>
@@ -51,12 +50,9 @@ exports.Bucket = (fileName) -> {
 
         dirtyData = JSON.stringify(dirtyToWrite)
         dirtyData = "#{dirtyData}\n"
-        console.log "Appending file"
-        console.dir @fileName
-        console.dir dirtyData
         fs.appendFile @fileName, dirtyData, {encoding:'utf8'}, (err) =>
-          console.dir "dirty written"
           unless err?
+            console.log "Store about to call success callback"
             cb(null, "Changes saved")
           else
             console.error "Bucket ERROR: Failed to store transaction!"
@@ -70,19 +66,22 @@ exports.Bucket = (fileName) -> {
       #inStream = fs.createReadStream(@fileName, {flags:'r', encoding:'utf8'})
       @tailProcess = cp.spawn 'tail', ['-f', '-n +0', @fileName]
       inStream     = @tailProcess.stdout
-      dataReader   = carrier.carry inStream, (line) ->
+      dataReader   = carrier.carry inStream, (line) =>
+        console.log "Reader LINE callback..."
         chunk   = JSON.parse line
         deleted = _.where chunk, {deleted:true}
         deleted = _.pluck deleted, 'id'
-        _.each deleted, (id) ->
+        _.each deleted, (id) =>
           delete chunk[id]
           delete @bucket[id]
 
-        _.extend contextBucket, chunk
+#        _.extend contextBucket, chunk
+        _.extend @bucket, chunk
+        console.log "Reader LINE callback end!"
 
       dataReader.once 'end', () ->
-        console.info "Database closed"
-        cb()
+        console.log "Reader END callback..."
+#        cb() what?
 
     load : (cb) ->
       fs.closeSync(fs.openSync(@fileName, 'a'))

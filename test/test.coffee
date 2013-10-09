@@ -8,8 +8,7 @@ exports.testGroup1 = {
       instance.set {id: "123", fluff: "fluff", diff: "diff1"}
       instance.set {id: "456", fluff: "fluff", diff: "diff2"}
 
-      instance.store () ->
-        console.log "inside instance.store"
+      instance.store () =>
         callback()
 
   tearDown : (callback) ->
@@ -41,12 +40,12 @@ exports.testGroup1 = {
   testWhere : (test) ->
     test.expect 4
     found = @myBucket.where({fluff: "fluff"})
-    test.equals(found.length, 2, "Should be two objects")
+    test.equal(found.length, 2, "Should be two objects")
     @myBucket.set({fluff: "fluff", diff: "diff3"})
     found = @myBucket.where({fluff: "fluff"})
-    test.equals(found.length, 2, "Should be two objects, since the set one is dirty...")
+    test.equal(found.length, 2, "Should be two objects, since the set one is dirty...")
     found = @myBucket.where({fluff: "fluff"}, true)
-    test.equals(found.length, 3, "Should be three objects when dirty is included.")
+    test.equal(found.length, 3, "Should be three objects when dirty is included.")
     found = @myBucket.where({diff : "diffOther"})
     test.equal(found.length, 0, "No object found should return empty array.")
     test.done()
@@ -89,28 +88,28 @@ exports.testGroup1 = {
 
   testStore : (test) ->
     test.expect 2
-    test.ok(@myBucket.where({fluff : "fluff"})[0], 2, "Should contain two fluffs after setup")
+    test.equal(@myBucket.where({fluff : "fluff"}).length, 2, "Should contain two fluffs after setup")
     @myBucket.set({fluff : "fluff", miff : "miff"})
     @myBucket.store =>
       anotherBucket = new bucket.Bucket("./test.db")
       anotherBucket.load ->
-        test.ok(anotherBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+        test.equal(anotherBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after store and reload")
         test.done()
 
   testStoreImpatient : (test) ->
     test.expect 3
-    test.ok(@myBucket.where({fluff : "fluff"})[0], 2, "Should contain two fluffs after setup")
+    test.equal(@myBucket.where({fluff : "fluff"}).length, 2, "Should contain two fluffs after setup")
     @myBucket.set({fluff : "fluff", miff : "miff"})
     @myBucket.store =>
       anotherBucket = new bucket.Bucket("./test.db")
       anotherBucket.load ->
-        test.ok(anotherBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+        test.equal(anotherBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after store and reload")
         test.done()
-    test.ok(@myBucket.where({fluff : "fluff"})[0], 3, "Should contain three fluffs after store and reload")
+    test.equal(@myBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after impatient store")
 
 
   testReplace : (test) ->
-    test.expect 6
+    test.expect 7
     @myBucket.set({id : "456", fluff: "floff", fiff: "fiff"})
     object = @myBucket.getById("456", true)
     test.equal(object.fiff, "fiff", "Should be the updated object")
@@ -120,10 +119,16 @@ exports.testGroup1 = {
       test.equal(object.fiff, "fiff", "Should be the updated object after store")
       test.equal(object.fluff, "floff", "Should be the updated fluff after store")
       anotherBucket = new bucket.Bucket("./test.db")
-      anotherBucket.load =>
+      anotherBucket.load ->
         object = anotherBucket.getById "456"
-        test.equal(object.fiff, "fiff", "Should be the updated object after store and load")
-        test.equal(object.fluff, "floff", "Should be the updated fluff after store and load")
+        console.log "fluff"
+        console.dir object
+        test.ok(object?, "Object shouldn't be null here...")
+        console.log "fluff"
+        test.equal(object?.fiff?, "fiff", "Should be the updated object after store and load")
+        console.log "fluff"
+        test.equal(object?.fluff?, "floff", "Should be the updated fluff after store and load")
+        console.log "fluff"
         test.done()
 
   testReplaceImpatient : (test) ->
@@ -165,29 +170,30 @@ exports.testGroup1 = {
     test.done()
 
   testBunchOfImpatientStores : (test) ->
-    test.expect 8
+    test.expect 9
     @myBucket.set({fluff: "fluff", piff: "piff"})
     @myBucket.store ->
-    test.equals(@myBucket.where({fluff: "fluff"}).length, 3, "Should be three fluff objects");
+    test.equal(@myBucket.where({fluff: "fluff"}).length, 3, "Should be three fluff objects");
     @myBucket.deleteById "456"
     @myBucket.store ->
-    test.equals(@myBucket.where({fluff: "fluff"}).length, 2, "Should be two fluff objects");
+    test.equal(@myBucket.where({fluff: "fluff"}).length, 2, "Should be two fluff objects");
     @myBucket.set({id: "456", fluff: "fluff"})
     @myBucket.store ->
     @myBucket.set({id: "456", fluff: "fluff", diff: "diff"})
     @myBucket.set({id: "789", fluff: "fluff", diff: "hoff"})
     @myBucket.store ->
     @myBucket.set({id: "456", fluff: "fluff", diff: "diff2"})
-    @myBucket.store ->
+    @myBucket.store =>
     test.equal @myBucket.getById("456").diff, "diff2", "the new 456 should have the diff property with value diff2"
     @myBucket.set({id: "456", fluff: "fluff"})
-    @myBucket.store ->
-    test.equals(@myBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects");
+    @myBucket.store =>
+    test.equal(@myBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects");
     test.ok !@myBucket.getById("456").diff?, "teh new 456 shouldn't have the diff property"
     anotherBucket = new bucket.Bucket("./test.db")
     anotherBucket.load =>
-      test.equals(anotherBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects in the saved file");
-      test.equal @myBucket.getById("789").diff, "hoff", "the 789 should have the diff property with value hoff"
-      test.ok !anotherBucket.getById("456").diff?, "the new 456 shouldn't have the diff property in the saved file"
+      test.equal(anotherBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects in the saved file");
+      test.equal @myBucket.getById("789")?.diff?, "hoff", "the 789 should have the diff property with value hoff"
+      test.ok anotherBucket.getById("456")?, "the 456 object should exist"
+      test.ok !anotherBucket.getById("456")?.diff?, "the new 456 shouldn't have the diff property in the saved file"
       test.done()
 }
