@@ -4,6 +4,8 @@ carrier = require 'carrier'
 clone   = require 'clone'
 uuid    = require 'node-uuid'
 _       = require 'underscore'
+md5     = require 'md5'
+
 
 exports.Bucket = (fileName) -> {
     fileName    : fileName
@@ -11,10 +13,11 @@ exports.Bucket = (fileName) -> {
     dirty       : {}
     deleted     : []
     tailProcess : null
+    writehashes : []
 
     obliterate : (cb) ->
-      closing = () ->
-        fs.unlink fileName, (err) ->
+      closing = () =>
+        fs.unlink @fileName, (err) ->
           unless err?
             delete @bucket
             delete @filename
@@ -27,11 +30,9 @@ exports.Bucket = (fileName) -> {
             cb(err)
 
       @tailProcess.on 'exit', closing
-#      @tailProcess.on 'close', closing
 
       @tailProcess.kill()
 
-#   store callback, should be (err, statusMessage) ->
     store : (cb) ->
       console.log "store called"
       unless @hasChanges()
@@ -49,7 +50,10 @@ exports.Bucket = (fileName) -> {
         _.each deletesToWrite, (id) -> dirtyToWrite[id] = {deleted:true, id:id}
 
         dirtyData = JSON.stringify(dirtyToWrite)
+        hash = md5.digest_s(dirtyData)
+        @writehashes.push hash
         dirtyData = "#{dirtyData}\n"
+
         fs.appendFile @fileName, dirtyData, {encoding:'utf8'}, (err) =>
           unless err?
             console.log "Store about to call success callback"
@@ -62,31 +66,35 @@ exports.Bucket = (fileName) -> {
     close : (cb) ->
       @tailProcess.kill()
 
-    reader : () ->
-      #inStream = fs.createReadStream(@fileName, {flags:'r', encoding:'utf8'})
+    reader : (cb) ->
+      doneReading  = _.debounce _.once(cb), 200
+      _.delay doneReading, 200
       @tailProcess = cp.spawn 'tail', ['-f', '-n +0', @fileName]
-      inStream     = @tailProcess.stdout
-      dataReader   = carrier.carry inStream, (line) =>
+      inStream = @tailProcess.stdout
+      dataReader = carrier.carry inStream, (line) =>
         console.log "Reader LINE callback..."
-        chunk   = JSON.parse line
-        deleted = _.where chunk, {deleted:true}
-        deleted = _.pluck deleted, 'id'
-        _.each deleted, (id) =>
-          delete chunk[id]
-          delete @bucket[id]
-
-#        _.extend contextBucket, chunk
-        _.extend @bucket, chunk
+        hash = md5.digest_s(line)
+        if _.contains @writehashes, hash
+          console.log "Got match"
+          @writehashes = _.without @writehashes, hash
+        else
+          chunk   = JSON.parse line
+          deleted = _.where chunk, {deleted:true}
+          deleted = _.pluck deleted, 'id'
+          _.each deleted, (id) =>
+            delete chunk[id]
+            delete @bucket[id]
+          _.extend @bucket, chunk
         console.log "Reader LINE callback end!"
+        doneReading()
 
       dataReader.once 'end', () ->
         console.log "Reader END callback..."
-#        cb() what?
+        doneReading()
 
     load : (cb) ->
       fs.closeSync(fs.openSync(@fileName, 'a'))
-      @reader()
-      cb()
+      @reader(cb)
 
 
     deleteById : (id) ->
@@ -152,4 +160,6 @@ exports.initSingletonBucket = (filename, cb) ->
       exports.bucket = new exports.Bucket(filename)
       exports.bucket.load () ->
         cb(exports.bucket)
+    else
+      cb(exports.bucket)
 
