@@ -1,4 +1,5 @@
 bucket = require './bucket'
+_ = require 'underscore'
 
 bucketByName = (name) ->
   bucket.bucket
@@ -39,23 +40,34 @@ exports.getChanges = (req, res) ->
 # '/:name/where'
 exports.getWhere = (req, res) ->
   b = bucketByName req.params.name
-  res.end('NOT IMPLEMENTED YET')
+  items = b.where req.query
+  result = { status: 'OK', result: items }
+  res.end(JSON.stringify(result))
 
 # Store or update item(s)
 # '/:name/items'
 exports.postItems = (req, res) ->
   b = bucketByName req.params.name
-  res.end('NOT IMPLEMENTED YET')
+  items = req.body
+  _.each items, bucket.set
+  result = { status: 'OK' }
+  res.end(JSON.stringify(result))
 
 # Delete item(s)
 # '/:name/items/:ids'
 exports.deleteItems = (req, res) ->
   b = bucketByName req.params.name
-  res.end('NOT IMPLEMENTED YET')
+  ids = req.params.ids.split(',')
+  _.each ids, bucket.deleteById
+  result = { status: 'OK' }
+  res.end(JSON.stringify(result))
 
 # Get item(s)
 # '/:name/items/:ids'
 exports.getItems = (req, res) ->
   b = bucketByName req.params.name
-  res.end('NOT IMPLEMENTED YET')
+  ids = req.params.ids.split(',')
+  items = bucket.getByIds ids
+  result = { status: 'OK', result: items }
+  res.end(JSON.stringify(result))
 
