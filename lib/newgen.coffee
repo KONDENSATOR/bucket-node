@@ -5,6 +5,7 @@ clone   = require 'clone'
 uuid    = require 'node-uuid'
 _       = require 'underscore'
 md5     = require 'md5'
+path    = require 'path'
 
 # Keep track of any spawned child
 childProcessStash = {}
@@ -212,13 +213,4 @@ exports.Bucket = (fileName) -> {
         @dirty[object.id] = clone(object)
         object.id
   }
-
-exports.bucket = null
-exports.initSingletonBucket = (filename, cb) ->
-  unless exports.bucket?
-    exports.bucket = new exports.Bucket(filename)
-    exports.bucket.bucketLoad () ->
-      cb(exports.bucket)
-  else
-    cb(exports.bucket)
 

@@ -1,9 +1,9 @@
 program = require 'commander'
 express = require 'express'
-http = require 'http'
-fs = require 'fs'
+http    = require 'http'
+fs      = require 'fs'
 
-rest = require '../lib/rest'
+rest    = require '../lib/rest'
 
 
 tcpServer = null
@@ -13,7 +13,7 @@ tcpAddr = (value) ->
   return value.split ':'
 
 program.version('0.0.1')
-  .usage('[options] <file ...>')
+  .usage('[options] <path ...>')
   .option('-t, --tcp <addr>:<port>', 'IP and port to bind to socket', tcpAddr)
   .option('-u, --unix <path>', 'File path to bind to socket')
   .parse(process.argv);
@@ -21,8 +21,15 @@ program.version('0.0.1')
 process.on 'exit', () ->
  console.log("Exiting, have a nice day")
 
-
 main = () ->
+  if program.args.length == 0
+    console.error "No database path defined"
+    process.exit()
+
+  rest.path = program.args[0]
+
+  console.info "Using path #{rest.path}"
+
   app = express()
   app.use express.bodyParser()
 
@@ -32,6 +39,14 @@ main = () ->
   app.post   '/:name/db', rest.postDb
   # Delete database file
   app.delete '/:name/db', rest.deleteDb
+  # Load db into ram
+  app.post   '/:name/db/load', rest.postDbLoad
+  # Close db
+  app.post   '/:name/db/unload', rest.postDbUnload
+  # Fork db to child
+  app.post   '/:name/db/fork', (req, res) -> res.send('NOT IMPLEMENTED YET')
+  # Merge db into parent
+  app.post   '/:name/db/merge', (req, res) -> res.send('NOT IMPLEMENTED YET')
 
   # Delete pending changes
   app.delete '/:name/changes', rest.deleteChanges
@@ -48,9 +63,6 @@ main = () ->
   # Get item(s)
   app.get    '/:name/items/:ids', rest.getItems
 
-  # SPECIAL low prio
-  #app.post '/:name/fork', (req, res) -> res.send('NOT IMPLEMENTED YET')
-  #app.post '/:name/merge', (req, res) -> res.send('NOT IMPLEMENTED YET')
 
   if program.tcp?
     tcpServer = http.createServer(app)
