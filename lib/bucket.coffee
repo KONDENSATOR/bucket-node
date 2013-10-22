@@ -162,6 +162,7 @@ exports.Bucket = (fileName) -> {
         id = uuid.v4()
         _.extend object, {id: id}
       @dirty[object.id] = clone(object)
+      object.id
 
     merge : (childbucket) ->
       do (childbucket) ->

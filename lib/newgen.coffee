@@ -152,6 +152,7 @@ exports.Bucket = (fileName) -> {
 
     bucketFork : (name) ->
       childName = path.dirname(@fileName) + "#{name}.#{path.basename(@fileName)}"
+
       new Bucket(childName)
 
     bucketMerge : (childbucket) ->
