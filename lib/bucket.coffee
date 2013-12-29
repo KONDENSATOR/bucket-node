@@ -191,12 +191,12 @@ exports.Bucket = (fileName) -> {
 
 #   flattenAndExportAsync, save the current bucket to file, flattened to a single object (that is, clean up the data)
     flattenAndExportAsync : (fileName, callback) ->
-      fs.exists fileName, (exists) ->
+      fs.exists fileName, (exists) =>
         if exists
           callback "File #{fileName} already exists"
         else
           bucketJson = JSON.stringify @bucket
-          fs.writeFile fileName, bucketJson, {encoding:'utf8'}, (err) ->
+          fs.writeFile fileName, bucketJson, {encoding:'utf8'}, (err) =>
             callback err
   }
 
