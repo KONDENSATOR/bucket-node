@@ -34,7 +34,7 @@ exports.Bucket = (fileName) -> {
     deleted     : []
     tailProcess : null
     writehashes : []
-    instanceid  : Math.floor((Math.random()*10000)+1);
+    instanceid  : Math.floor((Math.random()*10000)+1)
 
     obliterate : (cb) ->
       closing = () =>
@@ -188,6 +188,16 @@ exports.Bucket = (fileName) -> {
     discardUnstoredChanges : () ->
       @dirty   = {}
       @deleted = []
+
+#   flattenAndExportAsync, save the current bucket to file, flattened to a single object (that is, clean up the data)
+    flattenAndExportAsync : (fileName, callback) ->
+      fs.exists fileName, (exists) ->
+        if exists
+          callback "File #{fileName} already exists"
+        else
+          bucketJson = JSON.stringify @bucket
+          fs.writeFile fileName, bucketJson, {encoding:'utf8'}, (err) ->
+            callback err
   }
 
 exports.bucket = null
