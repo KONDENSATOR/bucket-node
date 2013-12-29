@@ -195,7 +195,7 @@ exports.Bucket = (fileName) -> {
         if exists
           callback "File #{fileName} already exists"
         else
-          bucketJson = JSON.stringify @bucket
+          bucketJson = "#{JSON.stringify(@bucket)}\n"
           fs.writeFile fileName, bucketJson, {encoding:'utf8'}, (err) =>
             callback err
   }
