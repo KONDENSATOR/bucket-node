@@ -16,7 +16,6 @@
     "node-uuid" : "*",
     "coffee-script" : "*",
     "commander" : "*",
-    "hppy" : "KONDENSATOR/hppy-node",
     "express" : "*",
     "md5":"*"
   },
