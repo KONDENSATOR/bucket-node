@@ -85,12 +85,48 @@ exports.Bucket = (fileName) -> {
             cb(err, "Error during save") # Continue our with business!?!?! Not a good choice
 
     close : (cb) ->
-      delete childProcessStash[@tailProcess.pid]
+      if @tailProcess?
+        delete childProcessStash[@tailProcess.pid]
 
-      @tailProcess.on 'exit', cb
-      @tailProcess.kill()
+        @tailProcess.on 'exit', cb
+        @tailProcess.kill()
 
-    load : (cb) ->
+
+    #arguments should really be in the other order, but that would break backwards compatibility...
+    load: (cb, multiProcessEnabled = true) ->
+      if multiProcessEnabled
+        this.loadMultiProcessEnabled cb
+      else
+        this.loadSingleProcessBucket cb
+
+
+    loadSingleProcessBucket : (cb) ->
+      do (@fileName, @bucket, cb) ->
+        fs.exists @fileName, (exists) ->
+          if exists
+            contextBucket = @bucket
+            console.time "Bucket TIME: Read file"
+            inStream = fs.createReadStream(@fileName, {flags:'r', encoding:'utf8'})
+            dataReader = carrier.carry inStream, (line) ->
+              chunk = JSON.parse line
+              deleted = _.where chunk, {deleted:true}
+              deleted = _.pluck deleted, 'id'
+              _.each deleted, (id) ->
+                delete chunk[id]
+                delete @bucket[id]
+
+              _.extend contextBucket, chunk
+
+            dataReader.once 'end', () ->
+              console.timeEnd "Bucket TIME: Read file"
+              cb()
+          else
+            console.warn "Bucket WARN: File empty"
+            cb()
+
+
+
+    loadMultiProcessEnabled : (cb) ->
       # Create file if not existing
       fs.closeSync(fs.openSync(@fileName, 'a'))
       # After read delay, we suggest the file is initially fully read.
@@ -190,6 +226,7 @@ exports.Bucket = (fileName) -> {
       @deleted = []
 
 #   flattenAndExportAsync, save the current bucket to file, flattened to a single object (that is, clean up the data)
+#   It's safest to use this in a single process bucket, since that will guarantee that all data has been properly loaded before flatten and export...
     flattenAndExportAsync : (fileName, callback) ->
       fs.exists fileName, (exists) =>
         if exists
@@ -201,11 +238,13 @@ exports.Bucket = (fileName) -> {
   }
 
 exports.bucket = null
-exports.initSingletonBucket = (filename, cb) ->
+
+#arguments should really be with callback last, but that would break backwards compatibility...
+exports.initSingletonBucket = (filename, cb, multiProcessEnabled = true) ->
   unless exports.bucket?
     exports.bucket = new exports.Bucket(filename)
-    exports.bucket.load () ->
+    loadFinishedCallback = () ->
       cb(exports.bucket)
+    exports.bucket.load loadFinishedCallback, multiProcessEnabled
   else
     cb(exports.bucket)
-
