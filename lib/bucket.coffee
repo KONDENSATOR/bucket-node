@@ -33,7 +33,7 @@ dataset = (bucket, dirty, includeDirty) ->
   else
     bucket
 
-itmclone = (itm) -> clone(itm)
+itmclone = (itm) -> clone itm if itm?
 
 exports.Bucket = (fileName) -> {
     fileName    : fileName
