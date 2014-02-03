@@ -27,6 +27,14 @@ process.on 'exit', () ->
 # to gain if optimizing this down to as low as possible
 INITIAL_LOAD_TIMEOUT = 10 # miliseconds
 
+dataset = (bucket, dirty, includeDirty) ->
+  if includeDirty
+    _.extend({}, bucket, dirty)
+  else
+    bucket
+
+itmclone = (itm) -> clone(itm)
+
 exports.Bucket = (fileName) -> {
     fileName    : fileName
     bucket      : {}
@@ -188,10 +196,16 @@ exports.Bucket = (fileName) -> {
       itm
 
     where : (properties, includeDirty = false) ->
-      if includeDirty
-        _.map _.where(_.extend({}, @bucket, @dirty), properties), (itm) ->clone(itm)
-      else
-        _.map _.where(@bucket, properties), (itm) -> clone(itm)
+      _.chain(dataset(@bucket, @dirty, includeDirty))
+        .where(properties)
+        .map(itmclone)
+        .value()
+
+    filter : (predicate, includeDirty = false) ->
+      _.chain(dataset(@bucket, @dirty, includeDirty))
+        .filter(predicate)
+        .map(itmclone)
+        .value()
 
     set : (object) ->
       unless object.id?
@@ -248,3 +262,5 @@ exports.initSingletonBucket = (filename, cb, multiProcessEnabled = true) ->
     exports.bucket.load loadFinishedCallback, multiProcessEnabled
   else
     cb(exports.bucket)
+
+
