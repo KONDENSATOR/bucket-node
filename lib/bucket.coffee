@@ -16,7 +16,7 @@ process.on 'exit', () ->
 
 # Description of INITIAL_LOAD_TIMEOUT
 #
-# 10 ms might be very low i certain situations. Say file got opened
+# 100 ms might be very low i certain situations. Say file got opened
 # from cache, but disk are not up to speed. There might be a timelaps
 # between the opening and the getting data.
 #
@@ -25,7 +25,7 @@ process.on 'exit', () ->
 #
 # If your application opens a lot of files, then there will be latency
 # to gain if optimizing this down to as low as possible
-INITIAL_LOAD_TIMEOUT = 10 # miliseconds
+INITIAL_LOAD_TIMEOUT = 100 # miliseconds
 
 dataset = (bucket, dirty, includeDirty) ->
   if includeDirty
@@ -64,9 +64,10 @@ exports.Bucket = (fileName) -> {
 
       @tailProcess.kill()
 
+    #Store callback is: (err, res, numberOfChangesWritten)
     store : (cb) ->
       unless @hasChanges()
-        return cb(null, "No changes to save")
+        return cb(null, "No changes to save", 0)
 
       dirtyToWrite   = @dirty
       deletesToWrite = @deleted
@@ -86,11 +87,11 @@ exports.Bucket = (fileName) -> {
 
         fs.appendFile @fileName, dirtyData, {encoding:'utf8'}, (err) =>
           unless err?
-            cb(null, "Changes saved")
+            cb(null, "Changes saved", _.keys(dirtyToWrite).length)
           else
             console.error "Bucket ERROR: Failed to store transaction!"
             # TODO: Must take care of this execution path
-            cb(err, "Error during save") # Continue our with business!?!?! Not a good choice
+            cb(err, "Error during save", 0) # Continue our with business!?!?! Not a good choice
 
     close : (cb) ->
       if @tailProcess?
@@ -211,7 +212,11 @@ exports.Bucket = (fileName) -> {
       unless object.id?
         id = uuid.v4()
         _.extend object, {id: id}
-      @dirty[object.id] = clone(object)
+      updatedObject = clone(object)
+      #Check if the updated object is actually different from the one alredy in bucket (if any)
+      originalObject = @bucket[updatedObject.id]
+      unless _.isEqual(originalObject, updatedObject)
+        @dirty[object.id] = updatedObject
       object.id
 
     merge : (childbucket) ->

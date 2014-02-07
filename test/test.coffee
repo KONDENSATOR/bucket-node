@@ -1,6 +1,6 @@
 bucket = require "../index.js"
 
-exports.testGroup1 = {
+exports.testBucket_group1 = {
 
   setUp : (callback) ->
     bucket.initSingletonBucket "./test.db", (instance) =>
@@ -201,4 +201,20 @@ exports.testGroup1 = {
       test.ok !anotherBucket.getById("456")?.diff?, "the new 456 shouldn't have the diff property in the saved file"
       anotherBucket.close =>
         test.done()
+
+
+  testStoreEqualObjects : (test) ->
+    test.expect 5
+    @myBucket.set {id: "4711", name: "torsten", arr: [1, 2, 3]}
+    @myBucket.store (err, res, num) =>
+      test.equal num, 1, "should be one object written"
+      test.equal @myBucket.getById("4711").arr[2], 3, "Arr object should be 3"
+      @myBucket.set {id: "4711", name: "torsten", arr: [1, 2, 3]}
+      @myBucket.store (err, res, num) =>
+        test.equal num, 0, "Writing the same object shouldn't result in writes..."
+        @myBucket.set {id: "4711", name: "torsten", arr: [1, 2, 4]}
+        @myBucket.store (err, res, num) =>
+          test.equal num, 1, "Writing changes should result in write..."
+          test.equal @myBucket.getById("4711").arr[2], 4, "Arr object should be 4"
+          test.done()
 }
