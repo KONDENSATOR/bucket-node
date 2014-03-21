@@ -1,18 +1,22 @@
-bucket = require "../index.js"
+Bucket = require("../index.js")
 
 exports.testGroup1 = {
 
   setUp : (callback) ->
-    bucket.initSingletonBucket "./test.db", (instance) =>
-      if instance?
+    console.log "Opening bucket"
+    instance = new Bucket "./data.db"
+    console.log "Bucket open"
+    if instance?
+      instance.load () ->
         @myBucket = instance
-        @myBucket.set {id: "123", fluff: "fluff", diff: "diff1"}
-        @myBucket.set {id: "456", fluff: "fluff", diff: "diff2"}
+        @myBucket.set [
+          {id: "123", fluff: "fluff", diff: "diff1"},
+          {id: "456", fluff: "fluff", diff: "diff2"}]
 
-        @myBucket.store () =>
+        @myBucket.store "Initial setup", () =>
           callback()
-      else
-        console.log "Failed!"
+    else
+      console.log "Failed!"
 
   tearDown : (callback) ->
     @myBucket.obliterate () =>
@@ -94,7 +98,7 @@ exports.testGroup1 = {
     test.equal(@myBucket.where({fluff : "fluff"}).length, 2, "Should contain two fluffs after setup")
     @myBucket.set({fluff : "fluff", miff : "miff"})
     @myBucket.store =>
-      anotherBucket = new bucket.Bucket("./test.db")
+      anotherBucket = new bucket.Bucket("./data.db")
       anotherBucket.load ->
         itms = anotherBucket.where({fluff : "fluff"})
         length = itms.length
@@ -107,7 +111,7 @@ exports.testGroup1 = {
     test.equal(@myBucket.where({fluff : "fluff"}).length, 2, "Should contain two fluffs after setup")
     @myBucket.set({fluff : "fluff", miff : "miff"})
     @myBucket.store =>
-      anotherBucket = new bucket.Bucket("./test.db")
+      anotherBucket = new bucket.Bucket("./data.db")
       anotherBucket.load ->
         test.equal(anotherBucket.where({fluff : "fluff"}).length, 3, "Should contain three fluffs after store and reload")
         anotherBucket.close () ->
@@ -125,7 +129,7 @@ exports.testGroup1 = {
       objectInner = @myBucket.getById "456"
       test.equal(objectInner.fiff, "fiff", "Should be the updated object after store")
       test.equal(objectInner.fluff, "floff", "Should be the updated fluff after store")
-      anotherBucket = new bucket.Bucket("./test.db")
+      anotherBucket = new bucket.Bucket("./data.db")
       anotherBucket.load =>
         objectInnerest = anotherBucket.getById "456"
         test.ok(objectInnerest?, "Object shouldn't be null here...")
@@ -158,7 +162,7 @@ exports.testGroup1 = {
     @myBucket.store () =>
       object = @myBucket.getById("456");
       test.ok(!object?, "Object with id 456 should be deleted here...")
-      anotherBucket = new bucket.Bucket("./test.db")
+      anotherBucket = new bucket.Bucket("./data.db")
       anotherBucket.load =>
         object = anotherBucket.getById "456"
         test.ok(!object?, "Object with id 456 should be deleted in thei bucket as well...")
@@ -193,7 +197,7 @@ exports.testGroup1 = {
     @myBucket.store =>
     test.equal(@myBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects");
     test.ok !@myBucket.getById("456").diff?, "teh new 456 shouldn't have the diff property"
-    anotherBucket = new bucket.Bucket("./test.db")
+    anotherBucket = new bucket.Bucket("./data.db")
     anotherBucket.load =>
       test.equal(anotherBucket.where({fluff: "fluff"}).length, 4, "Should be three fluff objects in the saved file");
       test.equal @myBucket.getById("789").diff, "hoff", "the 789 should have the diff property with value hoff"
@@ -202,3 +206,7 @@ exports.testGroup1 = {
       anotherBucket.close =>
         test.done()
 }
+#exports.testGroup1.setUp () ->
+  #console.log "Setup done"
+  #exports.testGroup1.tearDown () ->
+    #console.log "Teared down"

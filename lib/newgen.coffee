@@ -1,4 +1,3 @@
-cp      = require 'child_process'
 fs      = require 'fs'
 carrier = require 'carrier'
 clone   = require 'clone'
@@ -6,14 +5,8 @@ uuid    = require 'node-uuid'
 _       = require 'underscore'
 md5     = require 'md5'
 path    = require 'path'
+tail    = require('tailfd').tail
 
-# Keep track of any spawned child
-childProcessStash = {}
-
-# On exit, kill all spawned children
-process.on 'exit', () ->
-  for pid, child of childProcessStash
-    child.kill()
 
 # Description of INITIAL_LOAD_TIMEOUT
 #
@@ -30,188 +23,176 @@ INITIAL_LOAD_TIMEOUT = 10 # miliseconds
 
 # Description
 # Bucket
-#   - bucketDelete
-#   - bucketStore
-#   - bucketClose
-#   - bucketLoad
-#   - bucketMerge
-#   - bucketChanges
-#   - bucketDiscardChanges
-#   - deleteItems
-#   - getItems
-#   - whereItems
-#   - setItems
+#   - obliterate
+#   - store
+#   - close
+#   - load
+#   - merge
+#   - changes
+#   - discardChanges
+#   - delete
+#   - get
+#   - where
+#   - set
 
-exports.Bucket = (fileName) -> {
-    fileName    : fileName
-    bucket      : {}
-    dirty       : {}
-    deleted     : []
-    tailProcess : null
-    writehashes : []
-    instanceid  : Math.floor((Math.random()*10000)+1);
+class Bucket
+  constructor : (@fileName) ->
+    @bucket      = {}
+    @dirty       = {}
+    @deleted     = []
+    @watcher     = null
+    @writehashes = []
+    @instanceid  = Math.floor((Math.random()*10000)+1);
 
-    bucketDelete : (cb) ->
-      closing = () =>
-        fs.unlink @fileName, (err) ->
-          unless err?
-            delete @bucket
-            delete @filename
-            delete @dirty
-            delete @deleted
-            # We must check if this instance is the default instance
-            exports.bucket = null
-            cb()
-          else
-            console.error "Bucket ERROR: Failed to obliterate bucket"
-            cb(err)
+  obliterate : (cb) ->
+    closing = () =>
+      fs.unlink @fileName, (err) ->
+        unless err?
+          delete @bucket
+          delete @filename
+          delete @dirty
+          delete @deleted
+          # We must check if this instance is the default instance
+          exports.bucket = null
+          cb()
+        else
+          console.error "Bucket ERROR: Failed to obliterate bucket"
+          cb(err)
 
-      delete childProcessStash[@tailProcess.pid]
-      @tailProcess.on 'exit', closing
+    @watcher.close()
 
-      @tailProcess.kill()
+  store : (comment, cb) ->
+    unless @hasChanges()
+      return cb(null, "No changes to save")
 
-    bucketStore : (comment, cb) ->
-      unless @hasChanges()
-        return cb(null, "No changes to save")
+    dirtyToWrite   = @dirty
+    deletesToWrite = @deleted
+    _.extend @bucket, @dirty
+    @dirty = {}
+    _.each @deleted, (id) =>
+      delete @bucket[id]
+    @deleted = []
 
-      dirtyToWrite   = @dirty
-      deletesToWrite = @deleted
-      _.extend @bucket, @dirty
-      @dirty = {}
-      _.each @deleted, (id) =>
-        delete @bucket[id]
-      @deleted = []
+    do (comment, @fileName, dirtyToWrite, deletesToWrite, cb) =>
+      _.each deletesToWrite, (id) => dirtyToWrite[id] = {deleted:true, id:id}
 
-      do (comment, @fileName, dirtyToWrite, deletesToWrite, cb) =>
-        _.each deletesToWrite, (id) -> dirtyToWrite[id] = {deleted:true, id:id}
+      dirtyToWrite = { log: comment, date: (new Date()).getTime(), payload: dirtyToWrite }
+      dirtyData = JSON.stringify(dirtyToWrite)
+      hash = md5.digest_s(dirtyData)
+      @writehashes.push hash
+      dirtyData = "#{dirtyData}\n"
 
-        dirtyToWrite = { log: comment, date: (new Date()).getTime(), payload: dirtyToWrite }
-        dirtyData = JSON.stringify(dirtyToWrite)
-        hash = md5.digest_s(dirtyData)
-        @writehashes.push hash
-        dirtyData = "#{dirtyData}\n"
+      fs.appendFile @fileName, dirtyData, {encoding:'utf8'}, (err) =>
+        unless err?
+          cb(null, "Changes saved")
+        else
+          console.error "Bucket ERROR: Failed to store transaction!"
+          # TODO: Must take care of this execution path
+          cb(err, "Error during save") # Continue our with business!?!?! Not a good choice
 
-        fs.appendFile @fileName, dirtyData, {encoding:'utf8'}, (err) =>
-          unless err?
-            cb(null, "Changes saved")
-          else
-            console.error "Bucket ERROR: Failed to store transaction!"
-            # TODO: Must take care of this execution path
-            cb(err, "Error during save") # Continue our with business!?!?! Not a good choice
+  close : (cb) ->
+    @watcher.close()
+    cb()
 
-    bucketClose : (cb) ->
-      delete childProcessStash[@tailProcess.pid]
+  load : (cb) ->
+    # Create file if not existing
+    fs.closeSync(fs.openSync(@fileName, 'a'))
+    # After read delay, we suggest the file is initially fully read.
+    # This call can only go throgh once.
+    doneReading  = _.debounce _.once(cb), INITIAL_LOAD_TIMEOUT
+    # Make sure that doneReading will be executed no matter if the file is empty
+    doneReading()
 
-      @tailProcess.on 'exit', cb
-      @tailProcess.kill()
+    options =
+      start : 0         # read from beginning of file
+      persistent: false # when main process die, kill all watches
 
-    bucketLoad : (cb) ->
-      # Create file if not existing
-      fs.closeSync(fs.openSync(@fileName, 'a'))
-      # After read delay, we suggest the file is initially fully read.
-      # This call can only go throgh once.
-      doneReading  = _.debounce _.once(cb), INITIAL_LOAD_TIMEOUT
-      # Make sure that doneReading will be executed no matter if the file is empty
+    @watcher = tail @fileName, (line, tailInfo) =>
+
+      # Make hash of new line
+      hash = md5.digest_s(line)
+      # Check if we wrote the line by looking up the hash
+      if _.contains @writehashes, hash
+        # Since we were the one creating the line, just remove the hash
+        # from index and do nothing
+        @writehashes = _.without @writehashes, hash
+      else
+        # Since we didn't generate the line, do process the data
+        chunk   = JSON.parse line
+        chunk   = chunk.payload
+        deleted = _.where chunk, {deleted:true}
+        deleted = _.pluck deleted, 'id'
+        _.each deleted, (id) =>
+          delete chunk[id]
+          delete @bucket[id]
+        _.extend @bucket, chunk
+
+      # Inform our caller that we have read a line, if the caller is the initial
+      # load, it will be informed that the full file is initially loaded.
       doneReading()
 
-      # Spawn child process
-      @tailProcess = cp.spawn 'tail', ['-f', '-n', '+0', @fileName]
+  fork : (name) ->
+    childName = path.dirname(@fileName) + "#{name}.#{path.basename(@fileName)}"
 
-      # Stash our child process so that we can kill it if the main process is killed
-      childProcessStash[@tailProcess.pid] = @tailProcess
+    new Bucket(childName)
 
-      # Logging
-      @tailProcess.stdout.setEncoding('utf8')
-      @tailProcess.stderr.setEncoding('utf8')
-
-      # The reader loop
-      dataReader = carrier.carry @tailProcess.stdout, (line) =>
-
-        # Make hash of new line
-        hash = md5.digest_s(line)
-        # Check if we wrote the line by looking up the hash
-        if _.contains @writehashes, hash
-          # Since we were the one creating the line, just remove the hash
-          # from index and do nothing
-          @writehashes = _.without @writehashes, hash
+  merge : (childbucket) ->
+    do (childbucket) ->
+      timeStamp = "Bucket INFO: Merge #{childbucket.fileName}"
+      console.time timeStamp
+      _.each childbucket, (value) -> @set(value)
+      @store (err) ->
+        unless err?
+          childbucket.obliterate (err) ->
+            unless err?
+              console.info "Bucket INFO: Merge complete"
+              console.timeEnd timeStamp
+            else
+              console.error "Bucket ERROR: Failed to merge"
+              console.timeEnd timeStamp
         else
-          # Since we didn't generate the line, do process the data
-          chunk   = JSON.parse line
-          chunk   = chunk.payload
-          deleted = _.where chunk, {deleted:true}
-          deleted = _.pluck deleted, 'id'
-          _.each deleted, (id) =>
-            delete chunk[id]
-            delete @bucket[id]
-          _.extend @bucket, chunk
+          console.error "Bucket ERROR: Failed to merge"
+          console.timeEnd timeStamp
 
-        # Inform our caller that we have read a line, if the caller is the initial
-        # load, it will be informed that the full file is initially loaded.
-        doneReading()
+  hasChanges : () ->
+    _.keys(@dirty).length > 0 or @deleted.length > 0
 
-    bucketFork : (name) ->
-      childName = path.dirname(@fileName) + "#{name}.#{path.basename(@fileName)}"
+  discardChanges : () ->
+    @dirty   = {}
+    @deleted = []
 
-      new Bucket(childName)
+  remove : (ids) ->
+    if not ids?
+      return
 
-    bucketMerge : (childbucket) ->
-      do (childbucket) ->
-        timeStamp = "Bucket INFO: Merge #{childbucket.fileName}"
-        console.time timeStamp
-        _.each childbucket, (value) -> @set(value)
-        @store (err) ->
-          unless err?
-            childbucket.obliterate (err) ->
-              unless err?
-                console.info "Bucket INFO: Merge complete"
-                console.timeEnd timeStamp
-              else
-                console.error "Bucket ERROR: Failed to merge"
-                console.timeEnd timeStamp
-          else
-            console.error "Bucket ERROR: Failed to merge"
-            console.timeEnd timeStamp
+    ids = [ids] if not _.isArray ids
+    _.each ids, (id) -> @deleted.push id
 
-    bucketChanges : () ->
-      _.keys(@dirty).length > 0 or @deleted.length > 0
+  get : (ids, includeDirty = false) ->
+    if not ids?
+      return []
 
-    bucketDiscardChanges : () ->
-      @dirty   = {}
-      @deleted = []
+    ids = [ids] if not _.isArray ids
+    items = @bucket
 
-    deleteItems : (ids) ->
-      if not ids?
-        return
+    if includeDirty
+      included = _.extend {}, @bucket, @dirty
+      items = included
 
-      ids = [ids] if not _.isArray ids
-      _.each ids, (id) -> @deleted.push id
+    _.map list, (id) -> clone items[id]
 
-    getItems : (ids, includeDirty = false) ->
-      if not ids?
-        return []
+  where : (properties, includeDirty = false) ->
+    if includeDirty
+      _.map _.where(_.extend({}, @bucket, @dirty), properties), (itm) ->clone(itm)
+    else
+      _.map _.where(@bucket, properties), (itm) -> clone(itm)
 
-      ids = [ids] if not _.isArray ids
-      items = @bucket
+  set : (objects) ->
+    objects = [objects] if not _.isArray objects
+    _.map objects, (object) =>
+      unless object.id?
+        _.extend object, {id: uuid.v4()}
+      @dirty[object.id] = clone(object)
+      object.id
 
-      if includeDirty
-        included = _.extend {}, @bucket, @dirty
-        items = included
-
-      _.map list, (id) -> clone items[id]
-
-    whereItems : (properties, includeDirty = false) ->
-      if includeDirty
-        _.map _.where(_.extend({}, @bucket, @dirty), properties), (itm) ->clone(itm)
-      else
-        _.map _.where(@bucket, properties), (itm) -> clone(itm)
-
-    setItems : (objects) ->
-      objects = [objects] if not _.isArray objects
-      _.map objects, (object) ->
-        unless object.id?
-          _.extend object, {id: uuid.v4()}
-        @dirty[object.id] = clone(object)
-        object.id
-  }
-
+module.exports = Bucket

@@ -18,7 +18,8 @@
     "commander" : "*",
     "hppy" : "KONDENSATOR/hppy-node",
     "express" : "*",
-    "md5":"*"
+    "md5":"*",
+    "tailfd":"*"
   },
   "private": true
 }
