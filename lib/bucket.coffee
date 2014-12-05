@@ -5,6 +5,7 @@ clone   = require 'clone'
 uuid    = require 'node-uuid'
 _       = require 'underscore'
 md5     = require 'md5'
+httpBackup = require './httpBackup'
 
 # Keep track of any spawned child
 childProcessStash = {}
@@ -103,10 +104,26 @@ exports.Bucket = (fileName) -> {
 
     #arguments should really be in the other order, but that would break backwards compatibility...
     load: (cb, multiProcessEnabled = true) ->
-      if multiProcessEnabled
-        this.loadMultiProcessEnabled cb
-      else
-        this.loadSingleProcessBucket cb
+      this.flattenAndLoad multiProcessEnabled, cb
+
+    flattenAndLoad: (multiProcess, cb) ->
+      breakOnError = (cont) ->
+        (err) ->
+          if err?
+            cb err
+          else
+            cont()
+
+      this.loadSingleProcessBucket () =>
+        this.flattenAndExportAsync "flat.db", breakOnError () =>
+          fs.rename this.fileName, this.fileName + ".old", breakOnError () =>
+            fs.rename "flat.db", this.fileName, breakOnError () =>
+              if multiProcess
+                this.loadMultiProcessEnabled () =>
+                  cb()
+              else
+                cb()
+
 
 
     loadSingleProcessBucket : (cb) ->
@@ -254,6 +271,9 @@ exports.Bucket = (fileName) -> {
           bucketJson = "#{JSON.stringify(@bucket)}\n"
           fs.writeFile fileName, bucketJson, {encoding:'utf8'}, (err) =>
             callback err
+
+    backup: (backupConfig) ->
+      httpBackup.backup(backupConfig, this.bucket)
   }
 
 exports.bucket = null

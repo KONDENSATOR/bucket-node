@@ -1,7 +1,7 @@
 {
   "name": "bucket-node",
   "description": "Simple filestorage",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "repository": {
     "type": "git",
     "url":  "git://github.com/KONDENSATOR/bucket-node.git" },
@@ -17,7 +17,9 @@
     "coffee-script" : "*",
     "commander" : "*",
     "express" : "*",
-    "md5":"*"
+    "md5":"*",
+    "restler":"*",
+    "cron":"*"
   },
   "private": true
 }
