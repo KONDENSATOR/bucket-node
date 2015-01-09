@@ -6,6 +6,7 @@ uuid    = require 'node-uuid'
 _       = require 'underscore'
 md5     = require 'md5'
 httpBackup = require './httpBackup'
+touch = require 'touch'
 
 # Keep track of any spawned child
 childProcessStash = {}
@@ -147,6 +148,7 @@ exports.Bucket = (fileName) -> {
               console.timeEnd "Bucket TIME: Read file"
               cb()
           else
+            touch.sync @fileName
             console.warn "Bucket WARN: File empty"
             cb()
 
