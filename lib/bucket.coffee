@@ -116,9 +116,9 @@ exports.Bucket = (fileName) -> {
             cont()
 
       this.loadSingleProcessBucket () =>
-        this.flattenAndExportAsync "flat.db", breakOnError () =>
+        this.flattenAndExportAsync "#{@fileName}-flat.db", breakOnError () =>
           fs.rename this.fileName, this.fileName + ".old", breakOnError () =>
-            fs.rename "flat.db", this.fileName, breakOnError () =>
+            fs.rename "#{@fileName}-flat.db", this.fileName, breakOnError () =>
               if multiProcess
                 this.loadMultiProcessEnabled () =>
                   cb()
