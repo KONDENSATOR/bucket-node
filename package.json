@@ -20,7 +20,7 @@
     "md5":"*",
     "restler":"*",
     "cron":"*",
-    "node-touch":"*"
+    "touch":"*"
   },
   "private": true
 }

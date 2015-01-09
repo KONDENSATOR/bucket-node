@@ -6,7 +6,7 @@ uuid    = require 'node-uuid'
 _       = require 'underscore'
 md5     = require 'md5'
 httpBackup = require './httpBackup'
-touch = require 'node-touch'
+touch = require 'touch'
 
 # Keep track of any spawned child
 childProcessStash = {}
