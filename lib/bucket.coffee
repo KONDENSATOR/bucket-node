@@ -128,8 +128,8 @@ exports.Bucket = (fileName) -> {
 
 
     loadSingleProcessBucket : (cb) ->
-      do (@fileName, @bucket, cb) ->
-        fs.exists @fileName, (exists) ->
+      do (@fileName, @bucket, cb) =>
+        fs.exists @fileName, (exists) =>
           if exists
             contextBucket = @bucket
             console.time "Bucket TIME: Read file"
