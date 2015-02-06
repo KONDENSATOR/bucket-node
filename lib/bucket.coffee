@@ -140,7 +140,7 @@ exports.Bucket = (fileName) -> {
               deleted = _.pluck deleted, 'id'
               _.each deleted, (id) ->
                 delete chunk[id]
-                delete @bucket[id]
+                delete contextBucket[id]
 
               _.extend contextBucket, chunk
 
