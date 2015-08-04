@@ -17,7 +17,7 @@
     "coffee-script" : "*",
     "commander" : "*",
     "express" : "*",
-    "md5":"*",
+    "md5":"1.0.0",
     "restler":"*",
     "cron":"*",
     "touch":"*"
